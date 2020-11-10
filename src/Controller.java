@@ -1,3 +1,4 @@
+import Constants.ConcurrencyConstants;
 import Map.Cell;
 import Map.Map;
 import Map.Utils;
@@ -5,7 +6,9 @@ import Map.SolveMap;
 import UIObjects.AlertBox;
 import UIObjects.ResizableRectangle;
 import javafx.beans.binding.Bindings;
+import javafx.beans.binding.DoubleBinding;
 import javafx.beans.property.*;
+import javafx.geometry.Pos;
 import javafx.scene.control.TextField;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
@@ -16,7 +19,12 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.shape.Rectangle;
 
 import java.net.URL;
+import java.util.Random;
 import java.util.ResourceBundle;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 
 
 import static java.lang.System.exit;
@@ -42,10 +50,23 @@ public class Controller implements Initializable {
             rows=0;
             columns=0;
         }
-        this.map = new Map(rows,columns);
+        ExecutorService executorService= Executors.newFixedThreadPool(ConcurrencyConstants.thread_pool_size);
+        this.map = new Map(rows,columns,executorService);
+        shutDownES(executorService);
         GridPane newMapGrid = this.createMapGrid(this.map);
         setMapGrid(newMapGrid);
+    }
 
+    public void shutDownES(ExecutorService executorService){
+        executorService.shutdown();
+        try {
+            if (!executorService.awaitTermination(ConcurrencyConstants.timeout, TimeUnit.SECONDS)) {
+                executorService.shutdownNow();
+            }
+        } catch (InterruptedException ex) {
+            executorService.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
     }
     @FXML
     public void solveMap(ActionEvent actionEvent){
@@ -76,6 +97,8 @@ public class Controller implements Initializable {
         exit(0);
     }
 
+
+
     private GridPane createMapGrid(Map inMap) {
         int pad = 2;
         int menuBarSize = 25;
@@ -105,7 +128,6 @@ public class Controller implements Initializable {
         GridPane.setConstraints(mapGrid, 0, 1);
         return mapGrid;
     }
-
 
 
 
